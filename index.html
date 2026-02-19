@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Informasi PGRI Sumedang</title>
+    <link rel="icon" type="image/png" href="https://ktadigitalpgri.org/assets/dist/img/logo.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --abu-tua: #333;
+            --orange-glossy: linear-gradient(180deg, #ff9900 0%, #cc7a00 100%);
+            --putih: #ffffff;
+            --merah-pgri: #d32f2f;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; margin: 0; }
+
+        .navbar-top { background: var(--putih); padding: 15px 20px; font-weight: bold; font-size: 1.4rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; position: sticky; top: 0; z-index: 1000; }
+        .navbar-sub { background: var(--orange-glossy); height: 12px; width: 100%; }
+        .menu-btn { cursor: pointer; font-size: 24px; margin-right: 20px; color: var(--abu-tua); }
+
+        .sidebar { height: 100%; width: 250px; position: fixed; z-index: 999; top: 0; left: -250px; background-color: var(--abu-tua); transition: 0.4s; padding-top: 80px; }
+        .sidebar.open { left: 0; }
+        .sidebar button { width: 100%; padding: 15px 25px; border: none; background: transparent; color: #bdc3c7; text-align: left; font-size: 16px; cursor: pointer; display: flex; align-items: center; gap: 15px; transition: 0.3s; border-bottom: 1px solid #444; }
+        .sidebar button:hover, .sidebar button.active { background-color: #ff9900; color: white; }
+
+        .form-card { max-width: 500px; margin: 20px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: left; }
+        
+        /* KTA DESIGN */
+        .id-card-wrapper { 
+            width: 324px; height: 204px; border-radius: 8px; position: relative; 
+            background-size: cover; overflow: hidden; color: #1a1a1a; margin: 0 auto; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2); 
+        }
+        .card-front { background-image: url('https://image2url.com/r2/default/images/1771299719106-32752935-5624-4165-9127-700795b8564c.png'); }
+        .card-back { background-image: url('https://image2url.com/r2/default/images/1771299801285-af210a45-b062-4482-9027-cd110dcc17a2.png'); }
+        
+        .photo-box { position: absolute; left: 15px; top: 80px; width: 80px; height: 85px; border-radius: 4px; object-fit: scale(0.9); z-index: 10; }
+
+                .info-box { position: absolute; left: 110px; top: 80px; text-align: left; font-weight: 800; line-height: 1.1; font-size: 10px; letter-spacing: 0.2px; }
+
+        .qr-code { position: absolute; right: 12px; top: 110px; width: 75px; height: 75px; background: white; padding: 5px; border-radius: 4px; }
+
+        .valid-text { position: absolute; left: 1px; bottom: 15px; font-size: 8px; text-align: center; width: 105px; text-transform: none; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #card-preview-area, #card-preview-area * { visibility: visible; }
+            #card-preview-area { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
+            .id-card-wrapper { width: 8.56cm !important; height: 5.4cm !important; page-break-after: always; -webkit-print-color-adjust: exact; box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="navbar-top">
+        <div class="menu-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></div>
+        Sistem Informasi Digital PGRI Sumedang
+    </div>
+    <div class="navbar-sub"></div>
+
+    <div id="mySidebar" class="sidebar">
+        <button id="btn-home" class="active" onclick="showPage('home')"><i class="fas fa-home"></i> Beranda</button>
+        <button id="btn-input" onclick="showPage('input')"><i class="fas fa-user-plus"></i> Input Data</button>
+        <button id="btn-rekap" onclick="showPage('rekap'); muatRekap();"><i class="fas fa-database"></i> Rekap Data</button>
+    </div>
+
+    <div id="main-container" class="p-6 text-center">
+        <div id="page-home">
+            <img src="https://ktadigitalpgri.org/assets/dist/img/logo.png" class="mx-auto w-44 mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">Selamat Datang</h1>
+            <p class="text-gray-600 mt-2">Sistem Informasi Pencetakan Kartu Tanda Anggota PGRI Sumedang</p>
+        </div>
+
+        <div id="page-input" class="form-card" style="display:none;">
+            <p class="text-center text-gray-500 mb-6 italic">Silahkan pengisian data sesuai formulir</p>
+            <form id="formAnggota" class="space-y-4">
+                <div><label class="block text-sm font-bold">Nama Lengkap & Gelar</label><input type="text" id="nama" class="w-full border p-2 rounded" required></div>
+                <div><label class="block text-sm font-bold">NPA</label><input type="text" id="npa" class="w-full border p-2 rounded" required></div>
+                <div><label class="block text-sm font-bold">Agama</label>
+                    <select id="agama" class="w-full border p-2 rounded">
+                        <option value="ISLAM">ISLAM</option>
+                        <option value="KRISTEN">KRISTEN</option>
+                        <option value="KATOLIK">KATOLIK</option>
+                        <option value="HINDU">HINDU</option>
+                        <option value="BUDHA">BUDHA</option>
+                    </select>
+                </div>
+                <div><label class="block text-sm font-bold">Unggah Foto (4x3),png,jpg, 50-100 kb.</label><input type="file" id="foto" accept="image/*" class="w-full border p-2 rounded" required></div>
+                <button type="button" onclick="prosesSimpan()" class="w-full bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700">SUBMIT & BUAT KARTU</button>
+            </form>
+        </div>
+
+        <div id="page-rekap" style="display:none;" class="bg-white p-6 rounded-lg shadow-lg max-w-6xl mx-auto">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h2 class="text-xl font-bold">Data Anggota</h2>
+                <div class="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                    <select id="filterCabang" onchange="filterTabel()" class="border rounded-full py-2 px-4 outline-none text-sm bg-gray-50">
+                        <option value="">-- Semua Cabang --</option>
+                    </select>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fas fa-search"></i></span>
+                        <input type="text" id="searchInput" onkeyup="filterTabel()" class="border rounded-full py-2 pl-10 pr-4 outline-none text-sm w-full md:w-64" placeholder="Cari Nama/NPA...">
+                    </div>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full border" id="tabelAnggota">
+                    <thead class="bg-gray-100 text-sm">
+                        <tr>
+                            <th class="border p-3">No</th>
+                            <th class="border p-3">NPA</th>
+                            <th class="border p-3 text-left">Nama</th>
+                            <th class="border p-3">Agama</th>
+                            <th class="border p-3">Cabang</th>
+                            <th class="border p-3">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabel-rekap-body" class="text-sm"></tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-between mt-4 items-center">
+                <p id="counterData" class="text-gray-500 text-sm">Menampilkan: 0 Anggota</p>
+                <div class="flex gap-2">
+                    <button onclick="muatRekap()" class="bg-orange-500 text-white px-4 py-2 rounded text-sm hover:bg-orange-600"><i class="fas fa-sync"></i> Refresh</button>
+                    <button onclick="eksporKeExcel()" class="bg-green-700 text-white px-4 py-2 rounded text-sm hover:bg-green-800"><i class="fas fa-file-excel"></i> Export</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="card-preview-area" style="display:none;" class="space-y-8 mt-6">
+            <div class="id-card-wrapper card-front">
+                <img id="card-img" src="" class="photo-box" crossorigin="anonymous">
+                <div class="info-box">
+                    <div id="c-nama">NAMA LENGKAP</div>
+                    <div class="mt-1">NPA. <span id="c-npa">000</span></div>
+                    <div>AGAMA: <span id="c-agama">ISLAM</span></div>
+                </div>
+                <img src="" id="c-qr" class="qr-code">
+                <div class="valid-text">Berlaku Selama<br>Menjadi Anggota</div>
+            </div>
+            <div class="id-card-wrapper card-back"></div>
+            <div class="no-print flex justify-center gap-4">
+                <button onclick="window.print()" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold"><i class="fas fa-print mr-2"></i>CETAK</button>
+                <button onclick="showPage('rekap')" class="bg-gray-500 text-white px-8 py-3 rounded-lg font-bold">KEMBALI</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzEscr7mHwjEpbZTDCpGjryP5QCrexVAEOoSAfIKHMcOHfEVV64CCtJ0dS5Vf3LHx5D/exec";
+
+        function toggleSidebar() { document.getElementById("mySidebar").classList.toggle("open"); }
+
+        function showPage(page) {
+            const pages = ['home', 'input', 'rekap'];
+            pages.forEach(p => document.getElementById('page-' + p).style.display = (p === page) ? 'block' : 'none');
+            document.getElementById('card-preview-area').style.display = 'none';
+            document.querySelectorAll('.sidebar button').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-' + page).classList.add('active');
+            if(window.innerWidth < 600 && document.getElementById("mySidebar").classList.contains("open")) toggleSidebar();
+        }
+
+        async function prosesSimpan() {
+            const btn = document.querySelector('button[onclick="prosesSimpan()"]');
+            const file = document.getElementById('foto').files[0];
+            if(!file || !document.getElementById('npa').value) return alert("Lengkapi data!");
+
+            btn.disabled = true; btn.innerText = "Menyimpan...";
+            const base64 = await new Promise(r => { 
+                const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(file); 
+            });
+
+            const payload = { 
+                npa: document.getElementById('npa').value, 
+                nama: document.getElementById('nama').value,
+                agama: document.getElementById('agama').value,
+                foto: base64 
+            };
+
+            try {
+                const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+                const hasil = await res.json();
+                if (hasil.result === "success") {
+                    alert("Berhasil!");
+                    document.getElementById('formAnggota').reset();
+                    showPage('rekap'); muatRekap();
+                }
+            } catch (e) { alert("Error simpan!"); }
+            finally { btn.disabled = false; btn.innerText = "SUBMIT & BUAT KARTU"; }
+        }
+
+        async function muatRekap() {
+            const tbody = document.getElementById('tabel-rekap-body');
+            tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center italic">Memuat database...</td></tr>';
+            
+            try {
+                const res = await fetch(SCRIPT_URL);
+                const data = await res.json();
+                tbody.innerHTML = '';
+                
+                // Isi Dropdown Cabang (Kolom H / Indeks 7)
+                const ddCabang = document.getElementById("filterCabang");
+                const listCabang = [...new Set(data.map(r => r[7]).filter(c => c))].sort();
+                ddCabang.innerHTML = '<option value="">-- Semua Cabang --</option>';
+                listCabang.forEach(c => ddCabang.innerHTML += `<option value="${c}">${c}</option>`);
+
+                data.forEach((row, i) => {
+                    let fileId = "";
+                    let fotoUrl = row[4] || "";
+                    if (fotoUrl.includes("id=")) fileId = fotoUrl.split("id=")[1].split("&")[0];
+                    else if (fotoUrl.includes("/d/")) fileId = fotoUrl.split("/d/")[1].split("/")[0];
+                    
+                    let thumb = fileId ? `https://lh3.googleusercontent.com/d/${fileId}` : "https://via.placeholder.com/50";
+
+                    tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50 border-b">
+                        <td class="border p-2 text-center text-xs text-gray-400">${i+1}</td>
+                        <td class="border p-2 text-center font-mono">${row[1]}</td>
+                        <td class="border p-2 font-semibold text-gray-700">${row[2]}</td>
+                        <td class="border p-2 text-center text-xs">${row[3]}</td>
+                        <td class="border p-2 text-center text-xs font-bold text-blue-600">${row[7] || '-'}</td>
+                        <td class="border p-2 text-center">
+                            <div class="flex justify-center items-center gap-2">
+                                <img src="${thumb}" class="w-10 h-12 object-cover rounded border" onerror="this.src='https://via.placeholder.com/50'">
+                                <button onclick="cetakDataTerpilih('${row[1]}', '${row[2]}', '${row[3]}', '${row[4]}')" 
+                                    class="bg-green-600 text-white px-2 py-1 rounded text-[10px] font-bold shadow-sm">CETAK</button>
+                            </div>
+                        </td>
+                    </tr>`;
+                });
+                document.getElementById("counterData").innerText = `Menampilkan: ${data.length} Anggota`;
+            } catch (e) { tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-red-500 text-center">Gagal muat data.</td></tr>'; }
+        }
+
+        function filterTabel() {
+            const cabang = document.getElementById("filterCabang").value.toLowerCase();
+            const nama = document.getElementById("searchInput").value.toLowerCase();
+            const rows = document.getElementById("tabel-rekap-body").getElementsByTagName("tr");
+            let c = 0;
+
+            for (let i = 0; i < rows.length; i++) {
+                const tNama = rows[i].getElementsByTagName("td")[1].innerText.toLowerCase() + rows[i].getElementsByTagName("td")[2].innerText.toLowerCase();
+                const tCabang = rows[i].getElementsByTagName("td")[4].innerText.toLowerCase();
+                
+                const mCabang = cabang === "" || tCabang.includes(cabang);
+                const mNama = nama === "" || tNama.includes(nama);
+
+                if (mCabang && mNama) { rows[i].style.display = ""; c++; }
+                else { rows[i].style.display = "none"; }
+            }
+            document.getElementById("counterData").innerText = `Menampilkan: ${c} Anggota`;
+        }
+
+        function cetakDataTerpilih(npa, nama, agama, foto) {
+            document.getElementById('c-nama').innerText = nama;
+            document.getElementById('c-npa').innerText = npa;
+            document.getElementById('c-agama').innerText = agama;
+            
+            let fileId = "";
+            if (foto.includes("id=")) fileId = foto.split("id=")[1].split("&")[0];
+            else if (foto.includes("/d/")) fileId = foto.split("/d/")[1].split("/")[0];
+
+            const img = document.getElementById('card-img');
+            img.src = fileId ? `https://lh3.googleusercontent.com/d/${fileId}` : foto;
+            img.setAttribute('crossorigin', 'anonymous');
+            
+            document.getElementById('c-qr').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${npa}`;
+            document.getElementById('page-rekap').style.display = 'none';
+            document.getElementById('card-preview-area').style.display = 'block';
+        }
+
+        function eksporKeExcel() {
+            const tabel = document.getElementById("tabelAnggota");
+            const ws = XLSX.utils.table_to_sheet(tabel);
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            for (let R = range.s.r; R <= range.e.r; ++R) {
+                const addr = XLSX.utils.encode_col(range.e.c) + (R + 1);
+                delete ws[addr];
+            }
+            range.e.c--; ws['!ref'] = XLSX.utils.encode_range(range);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Data");
+            XLSX.writeFile(wb, "Rekap_PGRI_" + new Date().getTime() + ".xlsx");
+        }
+    </script>
+</body>
+</html>
